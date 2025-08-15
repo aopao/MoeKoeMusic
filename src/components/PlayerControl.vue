@@ -1157,7 +1157,7 @@ const downloadSong = async () => {
         }
 
         // 浏览器环境处理 - 使用fetch + Blob方式
-        window.$modal.loading('正在下载...');
+        window.$modal.alert('正在下载...');
         
         const response = await fetch(currentSong.value.url);
         if (!response.ok) throw new Error('下载失败');
@@ -1177,12 +1177,10 @@ const downloadSong = async () => {
         setTimeout(() => {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(blobUrl);
-            window.$modal.closeLoading();
         }, 100);
 
     } catch (error) {
         console.error('[PlayerControl] 下载歌曲失败:', error);
-        window.$modal.closeLoading();
         window.$modal.alert('下载失败: ' + error.message);
     }
 };
