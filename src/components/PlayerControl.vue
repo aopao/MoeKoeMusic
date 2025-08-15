@@ -45,6 +45,10 @@
                         </div>
                     </div>
                 </div>
+                    <!-- 添加下载按钮 -->
+                <button class="extra-btn" title="下载歌曲" @click="downloadSong">
+                    <i class="fas fa-download"></i>
+                </button>
                 <button class="extra-btn" title="我喜欢" @click="playlistSelect.toLike()"><i
                         class="fas fa-heart"></i></button>
                 <button class="extra-btn" title="收藏至" @click="playlistSelect.fetchPlaylists()"><i
@@ -1129,6 +1133,57 @@ const onQueueLocalSongAdd = async (item) => {
     } else if (result && result.shouldPlayNext) {
         console.log('[PlayerControl] 本地音乐无法播放');
         handleAutoSwitch();
+    }
+};
+
+const downloadSong = async () => {
+    if (!currentSong.value?.hash || !currentSong.value.url) {
+        window.$modal.alert('没有当前播放歌曲');
+        return;
+    }
+
+    try {
+        // 清理文件名中的非法字符
+        const cleanFileName = (name) => name.replace(/[\/\\:*?"<>|]/g, '');
+        const fileName = `${cleanFileName(currentSong.value.author)} - ${cleanFileName(currentSong.value.name)}.mp3`;
+
+        // Electron环境处理
+        if (isElectron()) {
+            window.electron.ipcRenderer.send('download-song', {
+                url: currentSong.value.url,
+                fileName: fileName
+            });
+            return;
+        }
+
+        // 浏览器环境处理 - 使用fetch + Blob方式
+        window.$modal.loading('正在下载...');
+        
+        const response = await fetch(currentSong.value.url);
+        if (!response.ok) throw new Error('下载失败');
+        
+        const blob = await response.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName;
+        a.style.display = 'none';
+        
+        document.body.appendChild(a);
+        a.click();
+        
+        // 清理
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(blobUrl);
+            window.$modal.closeLoading();
+        }, 100);
+
+    } catch (error) {
+        console.error('[PlayerControl] 下载歌曲失败:', error);
+        window.$modal.closeLoading();
+        window.$modal.alert('下载失败: ' + error.message);
     }
 };
 </script>
