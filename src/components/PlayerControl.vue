@@ -1145,7 +1145,23 @@ const downloadSong = async () => {
     try {
         // 清理文件名中的非法字符
         const cleanFileName = (name) => name.replace(/[\/\\:*?"<>|]/g, '');
-        const fileName = `${cleanFileName(currentSong.value.author)} - ${cleanFileName(currentSong.value.name)}.mp3`;
+
+        // 从URL中提取文件扩展名（考虑参数情况）
+        const getExtensionFromUrl = (url) => {
+            // 移除URL参数部分
+            const baseUrl = url.split('?')[0];
+            // 获取最后一个点之后的部分
+            const lastDotIndex = baseUrl.lastIndexOf('.');
+            if (lastDotIndex === -1) return '.mp3'; // 默认MP3格式
+            
+            const extension = baseUrl.substring(lastDotIndex).toLowerCase();
+            // 检查常见音频扩展名
+            const validExtensions = ['.mp3', '.flac', '.wav', '.ogg', '.m4a'];
+            return validExtensions.includes(extension) ? extension : '.mp3';
+        };
+
+        const extension = getExtensionFromUrl(currentSong.value.url);
+        const fileName = `${cleanFileName(currentSong.value.author)} - ${cleanFileName(currentSong.value.name)}${extension}`;
 
         // Electron环境处理
         if (isElectron()) {
