@@ -236,6 +236,11 @@ const updateCurrentTime = throttle(() => {
         progressWidth.value = (currentTime.value / audio.duration) * 100;
     }
 
+    // 更新SMTC位置状态
+    if (audio.duration && currentSong.value?.hash) {
+        mediaSession.updatePositionState(audio.currentTime, audio.duration, currentSpeed.value);
+    }
+
     const savedConfig = JSON.parse(localStorage.getItem('settings') || '{}');
     if (audio && (lyricsData.value.length || isLyrics === false)) {
         if (savedConfig?.lyricsAlign != lyricsAlign.value) lyricsAlign.value = savedConfig.lyricsAlign;
@@ -386,6 +391,10 @@ const playSong = async (song) => {
 
         try {
             mediaSession.changeMediaSession(currentSong.value);
+            // 更新SMTC位置状态
+            if (audio.duration) {
+                mediaSession.updatePositionState(audio.currentTime, audio.duration, currentSpeed.value);
+            }
             const playPromise = audio.play();
 
             if (playPromise !== undefined) {
@@ -824,6 +833,11 @@ const changePlaybackSpeed = (speed) => {
     currentSpeed.value = speed;
     setPlaybackRate(speed);
     showSpeedMenu.value = false;
+    
+    // 更新SMTC位置状态以反映新的播放速率
+    if (audio.duration && currentSong.value?.hash) {
+        mediaSession.updatePositionState(audio.currentTime, audio.duration, speed);
+    }
 };
 
 // 组件挂载
@@ -869,7 +883,26 @@ onMounted(() => {
     mediaSession.initMediaSession({
         togglePlayPause,
         playPrevious: () => playSongFromQueue('previous'),
-        playNext: () => playSongFromQueue('next')
+        playNext: () => playSongFromQueue('next'),
+        seekBackward: (seekOffset) => {
+            if (audio.currentTime > seekOffset) {
+                audio.currentTime -= seekOffset;
+            } else {
+                audio.currentTime = 0;
+            }
+        },
+        seekForward: (seekOffset) => {
+            if (audio.currentTime + seekOffset < audio.duration) {
+                audio.currentTime += seekOffset;
+            } else {
+                audio.currentTime = audio.duration;
+            }
+        },
+        seekTo: (seekTime) => {
+            if (seekTime >= 0 && seekTime <= audio.duration) {
+                audio.currentTime = seekTime;
+            }
+        }
     });
 
     // 设置系统媒体快捷键
@@ -900,6 +933,8 @@ onMounted(() => {
     audio.addEventListener('pause', () => {
         playing.value = false;
         console.log('[PlayerControl] 暂停事件');
+        // 暂停时清除SMTC位置状态
+        mediaSession.clearPositionState();
         if (isElectron()) window.electron.ipcRenderer.send('play-pause-action', playing.value, audio.currentTime);
     });
 
